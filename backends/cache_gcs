@@ -42,7 +42,7 @@ gcs_listobjects() {
   local prefix="$1"
 
   result=$(gcs_cmd storage ls \
-    "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/$(build_key "${prefix}")" 2>/dev/null)
+    "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/$(build_key "${prefix}")")
 
   [ "$result" != '' ]
 }
