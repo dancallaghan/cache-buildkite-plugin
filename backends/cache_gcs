@@ -28,12 +28,14 @@ gcs_copy() {
   local to="$2"
   local use_recursive="${3:-true}"
   local options=()
+  local command='cp'
 
   if [ "${use_recursive}" = 'true' ]; then
     options+=(--recursive)
+    command='rsync'
   fi
 
-  gcs_cmd storage cp "${options[@]}" "${from}" "${to}"
+  gcs_cmd storage ${command} "${options[@]}" "${from}" "${to}"
 }
 
 gcs_listobjects() {
