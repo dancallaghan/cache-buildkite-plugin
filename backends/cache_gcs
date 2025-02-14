@@ -1,0 +1,90 @@
+#!/bin/bash
+
+if [ -z "${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}" ]; then
+  echo '+++ 🚨 Missing GCS bucket configuration'
+  exit 1
+fi
+
+build_key() {
+  if [ -n "${BUILDKITE_PLUGIN_GCS_CACHE_PREFIX}" ]; then
+    echo "${BUILDKITE_PLUGIN_GCS_CACHE_PREFIX}/${1}"
+  else
+    echo "$1"
+  fi
+}
+
+gcs_cmd() {
+  gcs_cmd=(gcloud)
+
+  if [ -n "${BUILDKITE_PLUGIN_GCS_CACHE_ENDPOINT}" ]; then
+    gcs_cmd+=(--endpoint-url "${BUILDKITE_PLUGIN_GCS_CACHE_ENDPOINT}")
+  fi
+
+  "${gcs_cmd[@]}" "$@"
+}
+
+gcs_copy() {
+  local from="$1"
+  local to="$2"
+  local use_recursive="${3:-true}"
+  local options=()
+
+  if [ "${use_recursive}" = 'true' ]; then
+    options+=(--recursive)
+  fi
+
+  gcs_cmd storage cp "${options[@]}" "${from}" "${to}"
+}
+
+gcs_listobjects() {
+  local prefix="$1"
+
+  result=$(gcs_cmd storage ls \
+    "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/$(build_key "${prefix}")" 2>/dev/null)
+
+  [ "$result" != '' ]
+}
+
+restore_cache() {
+  local from="$1"
+  local to="$2"
+
+  key="$(build_key "${from}")"
+
+  # Set the recursive flag depending on whether the object is a container
+  local use_recursive='false'
+  if gcs_listobjects "${key}/"; then
+    use_recursive='true'
+  fi
+
+  gcs_copy "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/${key}" "${to}" "${use_recursive}"
+}
+
+save_cache() {
+  local to="$1"
+  local from="$2"
+  local use_recursive='true'
+  if [ -f "${from}" ]; then
+    use_recursive='false'
+  fi
+
+  gcs_copy "${from}" "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/$(build_key "${to}")" "${use_recursive}"
+}
+
+exists_cache() {
+  if [ -z "$1" ]; then exit 1; fi
+  gcs_listobjects "$1"
+}
+
+OPCODE="$1"
+shift
+
+if [ "$OPCODE" = 'exists' ]; then
+  exists_cache "$@"
+elif [ "$OPCODE" = 'get' ]; then
+  restore_cache "$@"
+elif [ "$OPCODE" = 'save' ]; then
+  save_cache "$@"
+else
+  exit 255
+fi
