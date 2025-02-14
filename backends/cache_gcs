@@ -57,7 +57,7 @@ restore_cache() {
 
   # Set the recursive flag depending on whether the object is a folder
   local use_recursive='false'
-  if gcs_listobjects "${key%/}/"; then
+  if gcs_listobjects "${from%/}/"; then
     use_recursive='true'
   fi
 
