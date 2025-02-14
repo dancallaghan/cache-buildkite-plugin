@@ -27,7 +27,7 @@ gcs_copy() {
   local from="$1"
   local to="$2"
   local use_recursive="${3:-true}"
-  local options=()
+  local options=(--no-user-output-enabled)
   local command='cp'
 
   if [ "${use_recursive}" = 'true' ]; then
@@ -39,10 +39,11 @@ gcs_copy() {
 }
 
 gcs_listobjects() {
-  local prefix="$1"
+  local key
+  key="$(build_key "$1")"
 
   result=$(gcs_cmd storage ls \
-    "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/$(build_key "${prefix}")")
+    "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/${key}" 2>/dev/null)
 
   [ "$result" != '' ]
 }
@@ -51,18 +52,12 @@ restore_cache() {
   local from="$1"
   local to="$2"
 
+  local key
   key="$(build_key "${from}")"
-
-  echo "$key"
-  gcs_listobjects "${key}/"
-  result="$?"
-  echo "~~~"
-  echo "$result"
 
   # Set the recursive flag depending on whether the object is a folder
   local use_recursive='false'
-  if gcs_listobjects "${key}/"; then
-    echo "~~~~~~~~~~"
+  if gcs_listobjects "${key%/}/"; then
     use_recursive='true'
   fi
 
@@ -72,12 +67,16 @@ restore_cache() {
 save_cache() {
   local to="$1"
   local from="$2"
+
+  local key
+  key="$(build_key "${to}")"
+
   local use_recursive='true'
   if [ -f "${from}" ]; then
     use_recursive='false'
   fi
 
-  gcs_copy "${from}" "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/$(build_key "${to}")" "${use_recursive}"
+  gcs_copy "${from}" "gs://${BUILDKITE_PLUGIN_GCS_CACHE_BUCKET}/${key}" "${use_recursive}"
 }
 
 exists_cache() {
