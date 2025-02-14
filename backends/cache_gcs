@@ -53,9 +53,12 @@ restore_cache() {
 
   key="$(build_key "${from}")"
 
+  echo "$key"
+
   # Set the recursive flag depending on whether the object is a container
   local use_recursive='false'
   if gcs_listobjects "${key}/"; then
+    echo "~~~~~~~~~~"
     use_recursive='true'
   fi
 
